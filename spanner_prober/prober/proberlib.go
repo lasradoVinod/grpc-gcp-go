@@ -23,6 +23,7 @@ import (
 	"go.opencensus.io/tag"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -44,6 +45,7 @@ const (
 	scope             = "https://www.googleapis.com/auth/cloud-platform"
 )
 
+var directPathPeerRanges = []string{"34.126.0.0/18", "2001:4860:8040::/42"}
 var (
 	generatePayload = func(size int) ([]byte, []byte, error) {
 		payload := make([]byte, size)
@@ -225,6 +227,8 @@ type ProberOptions struct {
 
 	// Number of channels.
 	ChannelPoolSize int
+
+	EnableDirectPath bool
 }
 
 // Prober holds the internal prober state.
@@ -241,6 +245,8 @@ type Prober struct {
 	payloadSize         int
 	generatePayload     func(int) ([]byte, []byte, error)
 	opt                 ProberOptions
+	allowedPeerRanges   []string
+	deniedPeerRanges    []string
 	// add clientOptions here as it contains credentials.
 	clientOpts []option.ClientOption
 }
@@ -306,6 +312,15 @@ func NewProber(ctx context.Context, opt ProberOptions, clientOpts ...option.Clie
 	if opt.Endpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(opt.Endpoint))
 	}
+
+	if opt.EnableDirectPath {
+		clientOpts = append(clientOpts, internaloption.EnableDirectPath(true))
+		clientOpts = append(clientOpts, internaloption.EnableDirectPathXds())
+	} else {
+		// TODO(b/168615976): remove this when we can disable DirectPath using GOOGLE_CLOUD_DISABLE_DIRECT_PATH env var
+		clientOpts = append(clientOpts, internaloption.EnableDirectPath(false))
+	}
+
 	p, err := newSpannerProber(ctx, opt, clientOpts...)
 	if err != nil {
 		return nil, err
@@ -433,6 +448,11 @@ func newSpannerProber(ctx context.Context, opt ProberOptions, clientOpts ...opti
 		mu:                  &sync.Mutex{},
 		opt:                 opt,
 		clientOpts:          clientOpts,
+	}
+	if opt.EnableDirectPath {
+		p.allowedPeerRanges = directPathPeerRanges
+	} else {
+		p.deniedPeerRanges = directPathPeerRanges
 	}
 
 	return p, nil

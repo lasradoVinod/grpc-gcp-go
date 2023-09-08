@@ -42,6 +42,7 @@ var (
 	useGrpcGcp      = flag.Bool("grpc_gcp", false, "Use gRPC-GCP library.")
 	channelPoolSize = flag.Int("channels", 2, "Number of channels.")
 	endpoint        = flag.String("endpoint", "spanner.googleapis.com:443", "Cloud Spanner Endpoint to send request to.")
+	directpath      = flag.Bool("directpath", false, "use directpath")
 )
 
 func main() {
@@ -61,10 +62,10 @@ func main() {
 		"ops_project: %q\ninstance: %q\ndatabase: %q\ninstance_config: %q\n"+
 		"node_count: %d\nprocessing_units: %d\nqps: %0.3f\nnum_rows: %d\n"+
 		"probe_type: %q\nmax_staleness: %v\npayload_size: %d\nprobe_deadline: %v\n"+
-		"grpc_gcp: %v\nchannels: %v\nendpoint: %q\n", *enableCloudOps, *project, *opsProject, *instance_name,
+		"grpc_gcp: %v\nchannels: %v\nendpoint: %q directpath: %q\n", *enableCloudOps, *project, *opsProject, *instance_name,
 		*database_name, *instanceConfig, *nodeCount, *processingUnits, *qps, *numRows,
 		*probeType, *maxStaleness, *payloadSize, *probeDeadline, *useGrpcGcp, *channelPoolSize,
-		*endpoint)
+		*endpoint, *directpath)
 
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(ioutil.Discard, /* Discard logs at INFO level */
 		os.Stderr, os.Stderr))
@@ -116,21 +117,22 @@ func main() {
 	}
 
 	opts := proberlib.ProberOptions{
-		Project:         *project,
-		Instance:        *instance_name,
-		Database:        *database_name,
-		InstanceConfig:  *instanceConfig,
-		QPS:             *qps,
-		NumRows:         *numRows,
-		Prober:          prober,
-		MaxStaleness:    *maxStaleness,
-		PayloadSize:     *payloadSize,
-		ProbeDeadline:   *probeDeadline,
-		Endpoint:        *endpoint,
-		NodeCount:       *nodeCount,
-		ProcessingUnits: *processingUnits,
-		UseGrpcGcp:      *useGrpcGcp,
-		ChannelPoolSize: *channelPoolSize,
+		Project:          *project,
+		Instance:         *instance_name,
+		Database:         *database_name,
+		InstanceConfig:   *instanceConfig,
+		QPS:              *qps,
+		NumRows:          *numRows,
+		Prober:           prober,
+		MaxStaleness:     *maxStaleness,
+		PayloadSize:      *payloadSize,
+		ProbeDeadline:    *probeDeadline,
+		Endpoint:         *endpoint,
+		NodeCount:        *nodeCount,
+		ProcessingUnits:  *processingUnits,
+		UseGrpcGcp:       *useGrpcGcp,
+		ChannelPoolSize:  *channelPoolSize,
+		EnableDirectPath: *directpath,
 	}
 
 	p, err := proberlib.NewProber(ctx, opts)
